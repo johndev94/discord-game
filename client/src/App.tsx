@@ -1,25 +1,21 @@
+import { useState } from "react";
 import { DiscordSDK } from "@discord/embedded-app-sdk";
 import rocketLogo from "./assets/rocket.png";
-
 import "./style.css";
 
 function App() {
 	// Will eventually store the authenticated user's access_token
-	let auth;
-	let activityChannelName = "Unknown";
-
+	const [activityChannelName, setActivityChannelName] = useState("Unknown");
+	const [user, setUser] = useState<string>("Default User");
 	const discordSdk = new DiscordSDK(import.meta.env.VITE_DISCORD_CLIENT_ID);
 
-	setupDiscordSdk().then(() => {
-		console.log("Discord SDK is authenticated");
-		appendVoiceChannelName();
-	});
-
-	async function setupDiscordSdk() {
+	async function initializeDiscordSdk() {
 		await discordSdk.ready();
 		console.log("Discord SDK is ready");
+	}
 
-		// Authorize with Discord Client
+	async function authenticateUser() {
+		// Each user must go through authorization
 		const { code } = await discordSdk.commands.authorize({
 			client_id: import.meta.env.VITE_DISCORD_CLIENT_ID,
 			response_type: "code",
@@ -28,90 +24,65 @@ function App() {
 			scope: ["identify", "guilds", "applications.commands", "rpc.voice.read"],
 		});
 
-		// Retrieve an access_token from your activity's server
+		// Fetch the access token for the user
 		const response = await fetch("/.proxy/api/token", {
 			method: "POST",
 			headers: {
 				"Content-Type": "application/json",
 			},
-			body: JSON.stringify({
-				code,
-			}),
+			body: JSON.stringify({ code }),
 		});
 
 		const { access_token } = await response.json();
 
-		// Authenticate with Discord client (using the access_token)
-		auth = await discordSdk.commands.authenticate({
-			access_token,
-		});
+		// Authenticate the user with Discord client
+		const auth = await discordSdk.commands.authenticate({ access_token });
 
-		if (auth == null) {
+		if (!auth) {
 			throw new Error("Authenticate command failed");
 		}
 
-		const appElement = document.querySelector<HTMLElement>("#app");
-
-		// Check if the element exists before setting its innerHTML
-		if (appElement) {
-			appElement.innerHTML = `
-        <div>
-          <img src="${rocketLogo}" class="logo" alt="Discord" />
-          <h1>Welcome!</h1>
-          <p>Server: ${activityChannelName}</p>
-        </div>
-      `;
-		} else {
-			console.error('Element with ID "app" not found.');
-		}
+		console.log("User authenticated:", auth.user);
+		return auth.user; // Return user data instead of storing globally
 	}
 
 	async function appendVoiceChannelName() {
-		console.log("Checking Discord SDK connection...");
-		console.log("Channel ID:", discordSdk.channelId);
-		console.log("Guild ID:", discordSdk.guildId);
-		// We abolish, loggers only
+		if(!discordSdk.channelId || !discordSdk.guildId) {
+			console.warn("Not in a voice channel");
+			return;
+		}
 
-		if (discordSdk.channelId && discordSdk.guildId) {
-			try {
-				console.log("Fetching channel details...");
-				const channel = await discordSdk.commands.getChannel({
-					channel_id: discordSdk.channelId,
-				});
-				console.log("Fetched channel:", channel);
-
-				if (channel?.name) {
-					activityChannelName = channel.name;
-				}
-			} catch (error) {
-				console.error("Error fetching channel:", error);
+		try {
+			const channel = await discordSdk.commands.getChannel({
+				channel_id: discordSdk.channelId,
+			});
+			if (channel?.name) {
+				setActivityChannelName(channel.name);
 			}
-		} else {
-			console.warn("Not in a voice channel.");
+		} catch (error) {
+			console.error("Error fetching channel:", error);
 		}
+	}
 
-		console.log("Final activityChannelName:", activityChannelName);
-
-		const appElement = document.querySelector<HTMLElement>("#app");
-
-		// Check if the element exists before setting its innerHTML
-		if (appElement) {
-			appElement.innerHTML = `
-        <div>
-          <img src="${rocketLogo}" class="logo" alt="Discord" />
-          <h1>Welcome!</h1>
-          <p>Server: ${activityChannelName}</p>
-        </div>
-      `;
-		} else {
-			console.error('Element with ID "app" not found.');
-		}
+	async function login() {
+		// This will display the name the current user on the activity
+		// We will need to implement a backend server to share all the users
+		// information with the frontend
+		console.log("Logging in...");
+		await initializeDiscordSdk();
+		let newUser = await authenticateUser();
+		setUser(newUser.global_name ?? "Default User");
+		await appendVoiceChannelName();
 	}
 
 	return (
 		<>
-			{/* TODO: We should be doing the rendering inside here instead of doing it in index.html with the innerHTML */}
-			{/* Only did this for ensuring the app still works. */}
+			<div id="app">
+				<img src={rocketLogo} className="logo" alt="Discord" />
+				<h1>Welcome {user}!</h1>
+				<button onClick={login}>Login</button>
+				<p>Server: {activityChannelName}</p>
+			</div>
 		</>
 	);
 }
