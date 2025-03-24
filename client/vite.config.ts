@@ -1,7 +1,9 @@
-import { defineConfig } from 'vite';
+import { defineConfig } from 'vite'
+import react from '@vitejs/plugin-react'
 
-// https://vitejs.dev/config/
+// https://vite.dev/config/
 export default defineConfig({
+  plugins: [react()],
   envDir: '../',
   server: {
     host: true, // <== Allow external access
@@ -17,6 +19,6 @@ export default defineConfig({
     hmr: {
       clientPort: 443,
     },
-    allowedHosts: ["college-essence-acm-french.trycloudflare.com"], // Optional
+    allowedHosts: [".trycloudflare.com"], // Optional
   },
-});
+})
