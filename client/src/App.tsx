@@ -1,119 +1,145 @@
+import { useState } from "react";
 import { DiscordSDK } from "@discord/embedded-app-sdk";
 import rocketLogo from "./assets/rocket.png";
-
 import "./style.css";
+import { Player } from "./types/player";
 
 function App() {
-	// Will eventually store the authenticated user's access_token
-	let auth;
-	let activityChannelName = "Unknown";
+  // Will eventually store the authenticated user's access_token
+  const [activityChannelName, setActivityChannelName] = useState("Unknown");
+  const [user, setUser] = useState<string>("Default User");
+  const [players, setPlayers] = useState<Player[]>([]); // Fix: Ensure it's just an array of Player objects
+  const discordSdk = new DiscordSDK(import.meta.env.VITE_DISCORD_CLIENT_ID);
 
-	const discordSdk = new DiscordSDK(import.meta.env.VITE_DISCORD_CLIENT_ID);
+  async function addPlayer(authUser: any) {
+    const newPlayer: Player = {
+      id: authUser.id,
+      name: authUser.global_name || "Unknown Player",
+      avatar: authUser.avatar
+        ? `https://cdn.discordapp.com/avatars/${authUser.id}/${authUser.avatar}.png`
+        : undefined,
+      color: players.length === 0 ? "red" : "yellow", // First player is red, second is yellow
+      isTurn: players.length === 0, // First player starts, can make this random after testing
+      score: 0,
+    };
 
-	setupDiscordSdk().then(() => {
-		console.log("Discord SDK is authenticated");
-		appendVoiceChannelName();
-	});
+    setPlayers((prevPlayers) => [...prevPlayers, newPlayer]);
+  }
 
-	async function setupDiscordSdk() {
-		await discordSdk.ready();
-		console.log("Discord SDK is ready");
+  async function initializeDiscordSdk() {
+    await discordSdk.ready();
+    console.log("Discord SDK is ready");
+  }
 
-		// Authorize with Discord Client
-		const { code } = await discordSdk.commands.authorize({
-			client_id: import.meta.env.VITE_DISCORD_CLIENT_ID,
-			response_type: "code",
-			state: "",
-			prompt: "none",
-			scope: ["identify", "guilds", "applications.commands", "rpc.voice.read"],
-		});
+  async function authenticateUser() {
+    if (players.length >= 2) {
+      console.log("Game is full");
+      return;
+    }
 
-		// Retrieve an access_token from your activity's server
-		const response = await fetch("/.proxy/api/token", {
-			method: "POST",
-			headers: {
-				"Content-Type": "application/json",
-			},
-			body: JSON.stringify({
-				code,
-			}),
-		});
+    // Each user must go through authorization
+    const { code } = await discordSdk.commands.authorize({
+      client_id: import.meta.env.VITE_DISCORD_CLIENT_ID,
+      response_type: "code",
+      state: "",
+      prompt: "none",
+      scope: ["identify", "guilds", "applications.commands", "rpc.voice.read"],
+    });
 
-		const { access_token } = await response.json();
+    // Fetch the access token for the user
+    const response = await fetch("/.proxy/api/token", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ code }),
+    });
 
-		// Authenticate with Discord client (using the access_token)
-		auth = await discordSdk.commands.authenticate({
-			access_token,
-		});
+    const { access_token } = await response.json();
 
-		if (auth == null) {
-			throw new Error("Authenticate command failed");
-		}
+    // Authenticate the user with Discord client
+    const auth = await discordSdk.commands.authenticate({ access_token });
 
-		const appElement = document.querySelector<HTMLElement>("#app");
+    if (!auth) {
+      throw new Error("Authenticate command failed");
+    }
 
-		// Check if the element exists before setting its innerHTML
-		if (appElement) {
-			appElement.innerHTML = `
-        <div>
-          <img src="${rocketLogo}" class="logo" alt="Discord" />
-          <h1>Welcome!</h1>
-          <p>Server: ${activityChannelName}</p>
-        </div>
-      `;
-		} else {
-			console.error('Element with ID "app" not found.');
-		}
-	}
+    console.log("User authenticated:", auth.user.global_name);
 
-	async function appendVoiceChannelName() {
-		console.log("Checking Discord SDK connection...");
-		console.log("Channel ID:", discordSdk.channelId);
-		console.log("Guild ID:", discordSdk.guildId);
-		// We abolish, loggers only
+    // Add the authenticated player
+    addPlayer(auth.user);
+  }
 
-		if (discordSdk.channelId && discordSdk.guildId) {
-			try {
-				console.log("Fetching channel details...");
-				const channel = await discordSdk.commands.getChannel({
-					channel_id: discordSdk.channelId,
-				});
-				console.log("Fetched channel:", channel);
+  async function appendVoiceChannelName() {
+    if (!discordSdk.channelId || !discordSdk.guildId) {
+      console.warn("Not in a voice channel");
+      return;
+    }
 
-				if (channel?.name) {
-					activityChannelName = channel.name;
-				}
-			} catch (error) {
-				console.error("Error fetching channel:", error);
-			}
-		} else {
-			console.warn("Not in a voice channel.");
-		}
+    try {
+      const channel = await discordSdk.commands.getChannel({
+        channel_id: discordSdk.channelId,
+      });
+      if (channel?.name) {
+        setActivityChannelName(channel.name);
+      }
+    } catch (error) {
+      console.error("Error fetching channel:", error);
+    }
+  }
 
-		console.log("Final activityChannelName:", activityChannelName);
+  async function login() {
+    // This will display the name of the current user on the activity
+    // We will need to implement a backend server to share all the users
+    // information with the frontend
+    console.log("Logging in...");
+    await initializeDiscordSdk();
+    await authenticateUser();
+    await appendVoiceChannelName();
+  }
 
-		const appElement = document.querySelector<HTMLElement>("#app");
-
-		// Check if the element exists before setting its innerHTML
-		if (appElement) {
-			appElement.innerHTML = `
-        <div>
-          <img src="${rocketLogo}" class="logo" alt="Discord" />
-          <h1>Welcome!</h1>
-          <p>Server: ${activityChannelName}</p>
-        </div>
-      `;
-		} else {
-			console.error('Element with ID "app" not found.');
-		}
-	}
-
-	return (
-		<>
-			{/* TODO: We should be doing the rendering inside here instead of doing it in index.html with the innerHTML */}
-			{/* Only did this for ensuring the app still works. */}
-		</>
-	);
+  return (
+    <div id="app">
+      <img src={rocketLogo} className="logo" alt="Discord" />
+      <h1>Welcome to Connect 4</h1>
+      {players.length < 2 ? (
+        <button onClick={login}>Login</button>
+      ) : (
+        <p>Game is full!</p>
+      )}
+      <p>Server: {activityChannelName}</p>
+      <h2>Players:</h2>
+      <ul>
+        {players.map((player) => (
+          <li key={player.id}>
+            <strong>Name:</strong> {player.name} <br />
+            <strong>Color:</strong> {player.color} <br />
+            <strong>Turn:</strong> {player.isTurn ? "Yes" : "No"} <br />
+            <strong>Score:</strong> {player.score} <br />
+            {player.avatar && (
+              <img
+                src={player.avatar}
+                alt={`${player.name}'s avatar`}
+                width="50"
+                height="50"
+              />
+            )}
+          </li>
+        ))}
+      </ul>
+    </div>
+  );
 }
 
 export default App;
+// async function addPlayer(authUser: any) {
+//     const newPlayer: Player = {
+//       id: authUser.id,
+//       name: authUser.global_name || "Unknown Player",
+//       avatar: authUser.avatar
+//         ? `https://cdn.discordapp.com/avatars/${authUser.id}/${authUser.avatar}.png`
+//         : undefined,
+//       color: players.length === 0 ? "red" : "yellow", // First player is red, second is yellow
+//       isTurn: players.length === 0, // First player starts, can make this random after testing
+//       score: 0,
+//     };
