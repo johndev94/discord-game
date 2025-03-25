@@ -1,6 +1,8 @@
 import express from "express";
 import dotenv from "dotenv";
 import fetch from "node-fetch";
+import { WebSocketServer } from 'ws';
+
 dotenv.config({ path: "../.env" });
 
 const app = express();
@@ -9,9 +11,53 @@ const port = 3001;
 // Allow express to parse JSON bodies
 app.use(express.json());
 
+// Store game state
+let gameState = {
+  players: {},
+  board: []
+};
+
+const wss = new WebSocketServer({ port: 3002 });
+
+wss.on('connection', (ws) => {
+
+  // const roomName = new URL(req.url, `http://${req.headers.host}`).searchParams.get('room');
+
+  // if (!rooms[roomName]) {
+  //   rooms[roomName] = new Set();
+  // }
+
+  // rooms[roomName].add(ws);
+
+  ws.on('message', (message) => {
+    // Broadcast the message to all clients in the same room
+    ws.send(message);
+    // rooms[roomName].forEach(client => {
+    //   if (client !== ws && client.readyState === WebSocket.OPEN) {
+    //     client.send(message);
+    //   }
+    // });
+  });
+
+  console.log('Client connected');
+  ws.send('Welcome to the WebSocket server');
+
+  ws.on('message', (message) => {
+    console.log(`Received: ${message}`);
+    ws.send(`You said: ${message}`);
+  });
+
+  ws.on('close', () => {
+    console.log('Client disconnected');
+  });
+});
+
+
 app.post("/api/token", async (req, res) => {
-  
   // Exchange the code for an access_token
+  console.log(req.body.code);
+  console.log(req.body);
+
   const response = await fetch(`https://discord.com/api/oauth2/token`, {
     method: "POST",
     headers: {
