@@ -3,6 +3,10 @@ import { DiscordSDK } from "@discord/embedded-app-sdk";
 import rocketLogo from "./assets/rocket.png";
 import "./style.css";
 import { Player } from "./types/player";
+import { createDocStore } from "@syncstate/core";
+import { useDoc, Provider } from "@syncstate/react";
+
+const store = createDocStore({ count: 0 });
 
 export function App() {
   // Will eventually store the authenticated user's access_token
@@ -11,6 +15,7 @@ export function App() {
   const [players, setPlayers] = useState<Player[]>([]); // Fix: Ensure it's just an array of Player objects
   const discordSdk = new DiscordSDK(import.meta.env.VITE_DISCORD_CLIENT_ID);
   const [counter, setCounter] = useState<number>(0);
+  const [doc, setDoc] = useDoc();
 
   async function addPlayer(authUser: any) {
     const newPlayer: Player = {
@@ -100,10 +105,16 @@ export function App() {
   }
 
   // Increment counter
-  const incrementCounter = () => setCounter((prevCount) => prevCount + 1);
+  const incrementCounter = (): void =>
+    setDoc((doc: { count: number }) => {
+      doc.count += 1;
+    });
 
   // Decrement counter
-  const decrementCounter = () => setCounter((prevCount) => prevCount - 1);
+  const decrementCounter = (): void =>
+    setDoc((doc: { count: number }) => {
+      doc.count--;
+    });
 
   return (
     <div id="app">
@@ -135,12 +146,11 @@ export function App() {
         ))}
       </ul>
 
-      {/* Counter Buttons */}
-      <div className="counter">
-        <h3>Counter: {counter}</h3>
+      {/* <div className="counter">
+        <h3>Counter: {doc.count}</h3>
         <button onClick={decrementCounter}>Decrement</button>
         <button onClick={incrementCounter}>Increment</button>
-      </div>
+      </div> */}
     </div>
   );
 }
