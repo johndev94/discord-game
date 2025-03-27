@@ -1,7 +1,7 @@
 import express from "express";
 import dotenv from "dotenv";
 import fetch from "node-fetch";
-import { WebSocketServer } from 'ws';
+import WebSocket, { WebSocketServer } from 'ws';
 
 dotenv.config({ path: "../.env" });
 
@@ -17,10 +17,11 @@ let gameState = {
   board: []
 };
 
-const wss = new WebSocketServer({ port: 3002 });
+const wss = new WebSocketServer({ port: 3002 })
+// console.log(wss);
 
 wss.on('connection', (ws) => {
-
+  console.log('Client connected');
   // const roomName = new URL(req.url, `http://${req.headers.host}`).searchParams.get('room');
 
   // if (!rooms[roomName]) {
@@ -29,15 +30,15 @@ wss.on('connection', (ws) => {
 
   // rooms[roomName].add(ws);
 
-  ws.on('message', (message) => {
-    // Broadcast the message to all clients in the same room
-    ws.send(message);
-    // rooms[roomName].forEach(client => {
-    //   if (client !== ws && client.readyState === WebSocket.OPEN) {
-    //     client.send(message);
-    //   }
-    // });
-  });
+  // ws.on('message', (message) => {
+  //   // Broadcast the message to all clients in the same room
+  //   ws.send(message);
+  //   // rooms[roomName].forEach(client => {
+  //   //   if (client !== ws && client.readyState === WebSocket.OPEN) {
+  //   //     client.send(message);
+  //   //   }
+  //   // });
+  // });
 
   console.log('Client connected');
   ws.send('Welcome to the WebSocket server');
