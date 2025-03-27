@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
-import { DiscordSDK } from "@discord/embedded-app-sdk";
+// import { DiscordSDK } from "@discord/embedded-app-sdk";
+import { discordSdk } from "./DiscordSDKHack";
 import rocketLogo from "./assets/rocket.png";
 import "./style.css";
 
@@ -12,16 +13,22 @@ function App() {
 	const [activityChannelName, setActivityChannelName] = useState("Unknown");
 	const [user, setUser] = useState<string>("Default User");
 	const [players, setPlayers] = useState<{ id: string; name: string }[]>([]);
-	const discordSdk = new DiscordSDK(import.meta.env.VITE_DISCORD_CLIENT_ID);
+	// const discordSdk = new DiscordSDK(import.meta.env.VITE_DISCORD_CLIENT_ID);
 
 	// const protocol = `wss`;
 	// const clientId = import.meta.env.VITE_DISCORD_CLIENT_ID;
 	// const proxyDomain = 'discordsays.com';
 	// const url = new URL(`${protocol}://${clientId}.${proxyDomain}/.proxy`);
 
-	const ws = new WebSocket("/.proxy/ws");
 
 	useEffect(() => {
+	
+		// const wsProtocol = location.protocol === 'http:' ? 'ws' : 'wss'
+
+		// console.log(`${wsProtocol}://${location.host}`);
+		const ws = new WebSocket(`/.proxy/ws`);
+		console.log(ws)
+
 		ws.onopen = () => {
 			console.log("Connected to WebSocket server");
 		};
@@ -47,50 +54,51 @@ function App() {
 		// };
 	}, []);
 
-	async function authenticateUser() {
-		// Each user must go through authorization
-		console.log("Authenticating user...");
-		await discordSdk.ready();
+	// async function authenticateUser() {
+	// 	// Each user must go through authorization
+	// 	console.log("Authenticating user...");
+	// 	await discordSdk.ready();
 		
-		const { code } = await discordSdk.commands.authorize({
-			client_id: import.meta.env.VITE_DISCORD_CLIENT_ID,
-			response_type: "code",
-			state: "",
-			prompt: "none",
-			scope: ["identify", "guilds", "applications.commands", "rpc.voice.read"],
-		});
+	// 	const { code } = await discordSdk.commands.authorize({
+	// 		client_id: import.meta.env.VITE_DISCORD_CLIENT_ID,
+	// 		response_type: "code",
+	// 		state: "",
+	// 		prompt: "none",
+	// 		scope: ["identify", "guilds", "applications.commands", "rpc.voice.read"],
+	// 	});
 
-		// Fetch the access token for the user
-		const response = await fetch("/.proxy/api/token", {
-			method: "POST",
-			headers: {
-				"Content-Type": "application/json",
-			},
-			body: JSON.stringify({ code }),
-		});
+	// 	// Fetch the access token for the user
+	// 	const response = await fetch("/.proxy/api/token", {
+	// 		method: "POST",
+	// 		headers: {
+	// 			"Content-Type": "application/json",
+	// 		},
+	// 		body: JSON.stringify({ code }),
+	// 	});
 
-		console.log(response);
+	// 	console.log(response);
 
-		const { access_token } = await response.json();
+	// 	const { access_token } = await response.json();
 
-		// Authenticate the user with Discord client
-		const auth = await discordSdk.commands.authenticate({ access_token });
+	// 	// Authenticate the user with Discord client
+	// 	const auth = await discordSdk.commands.authenticate({ access_token });
 
-		if (!auth) {
-			throw new Error("Authenticate command failed");
-		}
+	// 	if (!auth) {
+	// 		throw new Error("Authenticate command failed");
+	// 	}
 
-		const newPlayer = {
-			id: auth.user.id,
-			name: auth.user.global_name ?? "Default User",
-		};
+		// const newPlayer = {
+		// 	id: auth.user.id,
+		// 	name: auth.user.global_name ?? "Default User",
+		// };
 
-		setPlayers([...players, newPlayer]);
-		console.log("User authenticated:", auth.user.global_name);
-	}
+	// 	setPlayers([...players, newPlayer]);
+	// 	console.log("User authenticated:", auth.user.global_name);
+	// }
 
 	async function appendVoiceChannelName() {
-		if (!discordSdk.channelId || !discordSdk.guildId) {
+
+		if (!discordSdk.channelId) {
 			console.warn("Not in a voice channel");
 			return;
 		}
@@ -99,6 +107,7 @@ function App() {
 			const channel = await discordSdk.commands.getChannel({
 				channel_id: discordSdk.channelId,
 			});
+
 			if (channel?.name) {
 				setActivityChannelName(channel.name);
 			}
@@ -112,7 +121,8 @@ function App() {
 		// We will need to implement a backend server to share all the users
 		// information with the frontend
 		console.log("Logging in...");
-		await authenticateUser();
+		const auth = await discordSdk.initialize();
+		setPlayers([...players, {id: auth.user.id, name: auth.user.global_name ?? "Default User"}]);
 		await appendVoiceChannelName();
 	}
 
