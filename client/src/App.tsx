@@ -154,3 +154,14 @@ function App() {
 }
 
 export default App;
+// async function addPlayer(authUser: any) {
+//     const newPlayer: Player = {
+//       id: authUser.id,
+//       name: authUser.global_name || "Unknown Player",
+//       avatar: authUser.avatar
+//         ? `https://cdn.discordapp.com/avatars/${authUser.id}/${authUser.avatar}.png`
+//         : undefined,
+//       color: players.length === 0 ? "red" : "yellow", // First player is red, second is yellow
+//       isTurn: players.length === 0, // First player starts, can make this random after testing
+//       score: 0,
+//     };
