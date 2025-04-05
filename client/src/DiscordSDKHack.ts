@@ -157,7 +157,6 @@ class DiscordSDKManager {
 			prompt: "none",
 			scope: ["identify", "guilds", "applications.commands", "rpc.voice.read"],
 		});
-		console.log("Code:", code);
 
 		const response = await fetch("/.proxy/api/token", {
 			method: "POST",
@@ -170,13 +169,9 @@ class DiscordSDKManager {
 		});
 
 		const { access_token } = await response.json();
-		console.log("Access Token:", access_token);
 
 		// Authenticate with Discord client (using the access_token)
         this.auth = await discordSdk.commands.authenticate({ access_token });
-		// this.auth = await this.discordSdk.commands.authenticate({
-		// 	access_token: accessToken,
-		// });
 
 		if (import.meta.env.DEV) {
             console.log("Using dev auth data");
