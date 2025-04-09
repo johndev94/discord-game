@@ -38,7 +38,7 @@ function App() {
 				});
 			}
 
-			const channel = await getCurrenntVoiceChannel();
+			const channel = await getCurrentVoiceChannel();
 
 			if (channel !== null) {
 				setChannel(channel);
@@ -84,7 +84,7 @@ function App() {
 		};
 	}, [currentUser]);
 
-	async function getCurrenntVoiceChannel() {
+	async function getCurrentVoiceChannel() {
 		if (!discordSdk.channelId) {
 			console.warn("Not in a voice channel");
 			return;

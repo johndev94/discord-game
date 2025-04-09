@@ -31,6 +31,10 @@ wss.on('connection', (ws) => {
 
   ws.on('message', (message) => {
     const data = JSON.parse(message);
+    console.log(`Received message: ${message}`);
+    console.log(`Received message type: ${data.type}`);
+    console.log(`Received message id: ${data.id}`);
+    console.log(`Received message name: ${data.name}`);
     // if message is join_session, we need to add the player to the session.
     // if message is start_session, we need to create a new session.
     // if message is update_session, we need to send the message to all clients in the session.
@@ -41,21 +45,38 @@ wss.on('connection', (ws) => {
       case ENUMS.JOIN_SESSION:
         if (!sessions.has(data.id)) {
           console.info("Creating new session");
-          sessions.set(
-              data.id, {
-              clients: [ws],
-              players: [{name: data.name}],
-              board: []
-            }
-          );
-        } else if (sessions.has(data.id) && !sessions.get(data.id).clients.includes(ws)) {
+          sessions.set(data.id, {
+            clients: [ws],
+            players: [{ name: data.name }],
+            board: []
+          });
+        } else {
           console.info("Adding player to session");
-          let session = sessions.get(data.id);
-          session = sessions.get(data.id);
-          session.players.push({name: data.name});
-          session.clients.push(ws);
-          sessions.set(data.id, session);
+          const session = sessions.get(data.id);
+        
+          if (!session.clients.includes(ws)) session.clients.push(ws);
+          if (!session.players.find(p => p.name === data.name)) session.players.push({ name: data.name });
+        
         }
+        
+
+        // if (!sessions.has(data.id)) {
+        //   console.info("Creating new session");
+        //   sessions.set(
+        //       data.id, {
+        //       clients: [ws],
+        //       players: [{name: data.name}],
+        //       board: []
+        //     }
+        //   );
+        // } else if (sessions.has(data.id) && !sessions.get(data.id).clients.includes(ws)) {
+        //   console.info("Adding player to session");
+        //   let session = sessions.get(data.id);
+        //   session = sessions.get(data.id);
+        //   session.players.push({name: data.name});
+        //   session.clients.push(ws);
+        //   sessions.set(data.id, session);
+        // }
 
         let joiningSession  = sessions.get(data.id);
 
