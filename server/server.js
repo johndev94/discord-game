@@ -8,7 +8,7 @@ dotenv.config({ path: "../.env" });
 const app = express();
 const port = 3001;
 const sessions = new Map();
-const wss = new WebSocketServer({ port: 3002 })
+const wss = new WebSocketServer({ port: 3002 });
 
 // Allow express to parse JSON bodies
 app.use(express.json());
@@ -20,11 +20,10 @@ const ENUMS = {
   END_SESSION: "end_session",
 };
 
-class Player{
+class Spectator {
   name;
   client;
 }
-
 
 wss.on('connection', (ws) => {
   console.log('Client connected');
@@ -35,41 +34,44 @@ wss.on('connection', (ws) => {
     console.log(`Received message type: ${data.type}`);
     console.log(`Received message id: ${data.id}`);
     console.log(`Received message name: ${data.name}`);
-    // if message is join_session, we need to add the player to the session.
+    // if message is join_session, we need to add the spectator to the session.
     // if message is start_session, we need to create a new session.
     // if message is update_session, we need to send the message to all clients in the session.
 
     // NOTE: All case bodies will have their own functions later, this is just a placeholder.
-    // FYI: The fronted will ignore any messages sent here that don't have a type of ENUMS.JOIN_SESSION or ENUMS.UPDATE_SESSION. etc..
+    // FYI: The frontend will ignore any messages sent here that don't have a type of ENUMS.JOIN_SESSION or ENUMS.UPDATE_SESSION. etc..
     switch (data.type) {
       case ENUMS.JOIN_SESSION:
         if (!sessions.has(data.id)) {
           console.info("Creating new session");
           sessions.set(data.id, {
             clients: [ws],
-            players: [{ name: data.name }],
+            spectators: [{ name: data.name }], // Changed players to spectators
             board: []
           });
         } else {
-          console.info("Adding player to session");
+          console.info("Adding spectator to session");
           const session = sessions.get(data.id);
         
-          if (!session.clients.includes(ws)) session.clients.push(ws);
-          if (!session.players.find(p => p.name === data.name)) session.players.push({ name: data.name });
-        
+          if (!session.clients.includes(ws)) {
+            console.info("Adding client to session");
+            session.clients.push(ws);
+          }
+          if (!session.spectators.find(s => s.name === data.name)){ // Changed players to spectators
+            console.info("Adding spectator to session");
+            session.spectators.push({ name: data.name });  
+          } 
         }
         
-
-
-
-        let joiningSession  = sessions.get(data.id);
+        let joiningSession = sessions.get(data.id);
 
         joiningSession.clients.forEach(client => {
           console.log(`Sending message to client ${client}`);
-          client.send(JSON.stringify({type: ENUMS.JOIN_SESSION, players: joiningSession.players}));
+          client.send(JSON.stringify({ type: ENUMS.JOIN_SESSION, spectators: joiningSession.spectators })); // Changed from players to spectators
         });
-
         break;
+
+
       case ENUMS.START_SESSION:
         console.info("Starting session");
         break;
@@ -80,18 +82,17 @@ wss.on('connection', (ws) => {
     
         updatingSession.clients.forEach(client => {
           console.log(`Sending message to client`);
-          client.send(JSON.stringify({type: ENUMS.UPDATE_SESSION, message: data.message})); // This will be game session data later.
+          client.send(JSON.stringify({ type: ENUMS.UPDATE_SESSION, message: data.message })); // This will be game session data later.
         });
         break;
 
       case ENUMS.END_SESSION:
         break;
+
       default:
         console.info("Unknown message type");
         break;
     }
-      
-
   });
 
   ws.on('close', () => {
@@ -99,7 +100,6 @@ wss.on('connection', (ws) => {
   });
 
 });
-
 
 app.post("/api/token", async (req, res) => {
   // Exchange the code for an access_token
@@ -119,8 +119,8 @@ app.post("/api/token", async (req, res) => {
   // Retrieve the access_token from the response
   const { access_token } = await response.json();
 
-  // Return the access_token to our client as { access_token: "..."}
-  res.send({access_token});
+  // Return the access_token to our client as { access_token: "..." }
+  res.send({ access_token });
 });
 
 app.listen(port, () => {

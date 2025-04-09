@@ -21,7 +21,8 @@ function App() {
   const [input, setInput] = useState("");
 
   const [currentUser, setCurrentUser] = useState<User>(); // The current user
-  const [players, setPlayers] = useState<User[]>([]); // Ensure players is always an array
+  const [spectators, setSpectators] = useState<User[]>([]); // Ensure spectators is always an array
+
   const [channel, setChannel] = useState<any | null>(null); // The channel ID of the current user
 
   useEffect(() => {
@@ -57,8 +58,9 @@ function App() {
     ws.onmessage = (event) => {
       const data = JSON.parse(event.data);
       console.log("Data received:", data);
+
       if (data.type === ENUMS.JOIN_SESSION) {
-        setPlayers(data.players);
+        setSpectators(data.spectators); // Changed from players to spectators
       } else if (data.type === ENUMS.UPDATE_SESSION) {
         setMessages((prevMessages) => [...prevMessages, data.message]);
       }
@@ -66,7 +68,7 @@ function App() {
 
     ws.onclose = () => {
       console.log("Disconnected from WebSocket server");
-      // May need to remove the user from the sesssion here
+      // May need to remove the user from the session here
     };
 
     ws.onerror = (error) => {
@@ -115,17 +117,17 @@ function App() {
       <img src={rocketLogo} className="logo" alt="Discord" />
       <h1>Welcome to Connect 4</h1>
 
-      {/* May need to do this va;lidation later or redner something different based on player count */}
+      {/* May need to do this validation later or render something different based on spectator count */}
       <button>Join Game!</button>
 
       <h1>Current User: {currentUser?.name}</h1>
       <p>Channel Name: {channel ? channel.name : "No channel"}</p>
 
-      <h2>Players:</h2>
+      <h2>Spectators:</h2>
       <ul>
-        {/* Need to return the player count from the server */}
-        {players?.map((player) => (
-          <li key={player.id}>{player.name}</li>
+        {/* Need to return the spectator count from the server */}
+        {spectators?.map((spectator) => (
+          <li key={spectator.id}>{spectator.name}</li>
         ))}
       </ul>
 
@@ -149,14 +151,4 @@ function App() {
 }
 
 export default App;
-// async function addPlayer(authUser: any) {
-//     const newPlayer: Player = {
-//       id: authUser.id,
-//       name: authUser.global_name || "Unknown Player",
-//       avatar: authUser.avatar
-//         ? `https://cdn.discordapp.com/avatars/${authUser.id}/${authUser.avatar}.png`
-//         : undefined,
-//       color: players.length === 0 ? "red" : "yellow", // First player is red, second is yellow
-//       isTurn: players.length === 0, // First player starts, can make this random after testing
-//       score: 0,
-//     };
+
