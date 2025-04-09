@@ -60,23 +60,7 @@ wss.on('connection', (ws) => {
         }
         
 
-        // if (!sessions.has(data.id)) {
-        //   console.info("Creating new session");
-        //   sessions.set(
-        //       data.id, {
-        //       clients: [ws],
-        //       players: [{name: data.name}],
-        //       board: []
-        //     }
-        //   );
-        // } else if (sessions.has(data.id) && !sessions.get(data.id).clients.includes(ws)) {
-        //   console.info("Adding player to session");
-        //   let session = sessions.get(data.id);
-        //   session = sessions.get(data.id);
-        //   session.players.push({name: data.name});
-        //   session.clients.push(ws);
-        //   sessions.set(data.id, session);
-        // }
+
 
         let joiningSession  = sessions.get(data.id);
 
