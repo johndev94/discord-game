@@ -12,6 +12,7 @@ const ENUMS = {
   START_SESSION: "start_session",
   UPDATE_SESSION: "update_session",
   END_SESSION: "end_session",
+  JOIN_GAME: "join_game",
 };
 
 function App() {
@@ -22,6 +23,7 @@ function App() {
 
   const [currentUser, setCurrentUser] = useState<User>(); // The current user
   const [spectators, setSpectators] = useState<User[]>([]); // Ensure spectators is always an array
+  const [players, setPlayers] = useState<User[]>([]); // The users in the current session
 
   const [channel, setChannel] = useState<any | null>(null); // The channel ID of the current user
 
@@ -59,10 +61,15 @@ function App() {
       const data = JSON.parse(event.data);
       console.log("Data received:", data);
 
-      if (data.type === ENUMS.JOIN_SESSION) {
-        setSpectators(data.spectators); // Changed from players to spectators
-      } else if (data.type === ENUMS.UPDATE_SESSION) {
-        setMessages((prevMessages) => [...prevMessages, data.message]);
+      if (
+        data.type === ENUMS.JOIN_SESSION ||
+        data.type === ENUMS.UPDATE_SESSION
+      ) {
+        setSpectators(data.spectators);
+        setPlayers(data.players ?? []);
+        if (data.message) {
+          setMessages((prevMessages) => [...prevMessages, data.message]);
+        }
       }
     };
 
@@ -111,6 +118,17 @@ function App() {
       setInput("");
     }
   };
+  const handleJoinGame = () => {
+    if (socket && currentUser && channel) {
+      socket.send(
+        JSON.stringify({
+          type: ENUMS.JOIN_GAME,
+          user: currentUser,
+          channelId: channel.id,
+        })
+      );
+    }
+  };
 
   return (
     <div id="app">
@@ -118,7 +136,7 @@ function App() {
       <h1>Welcome to Connect 4</h1>
 
       {/* May need to do this validation later or render something different based on spectator count */}
-      <button>Join Game!</button>
+      <button onClick={handleJoinGame}>Join Game!</button>
 
       <h1>Current User: {currentUser?.name}</h1>
       <p>Channel Name: {channel ? channel.name : "No channel"}</p>
@@ -128,6 +146,13 @@ function App() {
         {/* Need to return the spectator count from the server */}
         {spectators?.map((spectator) => (
           <li key={spectator.id}>{spectator.name}</li>
+        ))}
+      </ul>
+
+      <h2>Players:</h2>
+      <ul>
+        {players?.map((player) => (
+          <li key={player.id}>{player.name}</li>
         ))}
       </ul>
 
@@ -151,4 +176,3 @@ function App() {
 }
 
 export default App;
-

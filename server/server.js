@@ -18,6 +18,7 @@ const ENUMS = {
   START_SESSION: "start_session",
   UPDATE_SESSION: "update_session",
   END_SESSION: "end_session",
+  JOIN_GAME: "join_game",
 };
 
 class Spectator {
@@ -31,75 +32,97 @@ wss.on('connection', (ws) => {
   ws.on('message', (message) => {
     const data = JSON.parse(message);
     console.log(`Received message: ${message}`);
-    console.log(`Received message type: ${data.type}`);
-    console.log(`Received message id: ${data.id}`);
-    console.log(`Received message name: ${data.name}`);
-    // if message is join_session, we need to add the spectator to the session.
-    // if message is start_session, we need to create a new session.
-    // if message is update_session, we need to send the message to all clients in the session.
 
-    // NOTE: All case bodies will have their own functions later, this is just a placeholder.
-    // FYI: The frontend will ignore any messages sent here that don't have a type of ENUMS.JOIN_SESSION or ENUMS.UPDATE_SESSION. etc..
     switch (data.type) {
       case ENUMS.JOIN_SESSION:
-        if (!sessions.has(data.id)) {
+        if (!sessions.has(data.channelId)) {
           console.info("Creating new session");
-          sessions.set(data.id, {
+          sessions.set(data.channelId, {
             clients: [ws],
-            spectators: [{ name: data.name }], // Changed players to spectators
-            board: []
+            spectators: [{ name: data.name, id: data.user?.id ?? "unknown" }],
+            players: [],
+            board: [],
           });
         } else {
           console.info("Adding spectator to session");
-          const session = sessions.get(data.id);
-        
+
+          const session = sessions.get(data.channelId);
+
           if (!session.clients.includes(ws)) {
-            console.info("Adding client to session");
             session.clients.push(ws);
           }
-          if (!session.spectators.find(s => s.name === data.name)){ // Changed players to spectators
-            console.info("Adding spectator to session");
-            session.spectators.push({ name: data.name });  
-          } 
+
+          const alreadySpectating = session.spectators.find(
+            (s) => s.id === data.user?.id
+          );
+
+          if (!alreadySpectating) {
+            session.spectators.push({ name: data.name, id: data.user?.id ?? "unknown" });
+          }
         }
-        
-        let joiningSession = sessions.get(data.id);
 
-        joiningSession.clients.forEach(client => {
-          console.log(`Sending message to client ${client}`);
-          client.send(JSON.stringify({ type: ENUMS.JOIN_SESSION, spectators: joiningSession.spectators })); // Changed from players to spectators
+        // Send updated session data back to all clients in this session
+        const updatedSession = sessions.get(data.channelId);
+        const payload = JSON.stringify({
+          type: ENUMS.JOIN_SESSION,
+          spectators: updatedSession.spectators,
         });
-        break;
 
-
-      case ENUMS.START_SESSION:
-        console.info("Starting session");
+        updatedSession.clients.forEach((client) => {
+          if (client.readyState === 1) client.send(payload); // 1 === WebSocket.OPEN
+        });
         break;
 
       case ENUMS.UPDATE_SESSION:
-        console.info("Updating session");
-        let updatingSession = sessions.get(data.id);
-    
-        updatingSession.clients.forEach(client => {
-          console.log(`Sending message to client`);
-          client.send(JSON.stringify({ type: ENUMS.UPDATE_SESSION, message: data.message })); // This will be game session data later.
+        const updateSession = sessions.get(data.channelId);
+        if (!updateSession) return;
+
+        const updatePayload = JSON.stringify({
+          type: ENUMS.UPDATE_SESSION,
+          message: `${data.user?.name ?? "Unknown"}: ${data.message}`,
+        });
+
+        updateSession.clients.forEach((client) => {
+          if (client.readyState === 1) client.send(updatePayload);
         });
         break;
 
-      case ENUMS.END_SESSION:
-        break;
+        case ENUMS.JOIN_GAME: {
+          const session = sessions.get(data.channelId);
+          if (!session) return;
+        
+          const isAlreadyPlayer = session.players.find((p) => p.id === data.user.id);
+        
+          // Always remove from spectators just in case
+          session.spectators = session.spectators.filter((s) => s.id !== data.user.id);
+        
+          if (!isAlreadyPlayer && session.players.length < 2) {
+            session.players.push({ name: data.user.name, id: data.user.id });
+          }
+        
+          const updatePayload = JSON.stringify({
+            type: ENUMS.UPDATE_SESSION,
+            players: session.players,
+            spectators: session.spectators,
+            message: `${data.user.name} joined the game.`,
+          });
+        
+          session.clients.forEach((client) => client.send(updatePayload));
+          break;
+        }
+        
+        
 
-      default:
-        console.info("Unknown message type");
-        break;
+      // Add additional case handlers for START_SESSION, END_SESSION, etc. as needed.
     }
   });
 
   ws.on('close', () => {
     console.log('Client disconnected');
+    // Optional: Remove the ws client from any sessions here
   });
-
 });
+
 
 app.post("/api/token", async (req, res) => {
   // Exchange the code for an access_token
