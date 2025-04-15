@@ -7,6 +7,15 @@ interface User {
   name?: string;
 }
 
+interface Player extends User {
+  color: "red" | "yellow";
+  isTurn: boolean;
+  score: number;
+  //for deciding who goes first
+  joinedAt: Date;
+  //think we should also have discord images here so the players can use their image as a chip
+}
+
 const ENUMS = {
   JOIN_SESSION: "join_session",
   START_SESSION: "start_session",
@@ -23,7 +32,7 @@ function App() {
 
   const [currentUser, setCurrentUser] = useState<User>(); // The current user
   const [spectators, setSpectators] = useState<User[]>([]); // Ensure spectators is always an array
-  const [players, setPlayers] = useState<User[]>([]); // The users in the current session
+  const [players, setPlayers] = useState<Player[]>([]); // The users in the current session
 
   const [channel, setChannel] = useState<any | null>(null); // The channel ID of the current user
 
@@ -152,7 +161,9 @@ function App() {
       <h2>Players:</h2>
       <ul>
         {players?.map((player) => (
-          <li key={player.id}>{player.name}</li>
+          <li key={player.id}>
+            {player.name} {" - "} {player.color.toUpperCase()}
+          </li>
         ))}
       </ul>
 

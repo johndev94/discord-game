@@ -89,25 +89,43 @@ wss.on('connection', (ws) => {
 
         case ENUMS.JOIN_GAME: {
           const session = sessions.get(data.channelId);
-          if (!session) return;
+          if (!session || !data.user?.id) return;
         
-          const isAlreadyPlayer = session.players.find((p) => p.id === data.user.id);
+          const userId = data.user.id;
+          const userName = data.user.name;
         
-          // Always remove from spectators just in case
-          session.spectators = session.spectators.filter((s) => s.id !== data.user.id);
+          // Remove user from spectators list
+          session.spectators = session.spectators.filter((s) => s.id !== userId);
         
+          // Check if already a player
+          const isAlreadyPlayer = session.players.some((p) => p.id === userId);
+        
+          // If the user is not already a player and there's room for one
           if (!isAlreadyPlayer && session.players.length < 2) {
-            session.players.push({ name: data.user.name, id: data.user.id });
+            const color = session.players.length === 0 ? "red" : "yellow"; // Assign "red" to the first player, "yellow" to the second
+            const isTurn = session.players.length === 0; // First player gets the first turn
+            const dateJoined = new Date().toISOString(); // Get the current date and time in ISO format
+        
+            session.players.push({
+              id: userId,
+              name: userName,
+              color,
+              isTurn,
+              dateJoined,
+            });
+        
+            // Send back the updated session
+            const updatePayload = JSON.stringify({
+              type: ENUMS.UPDATE_SESSION,
+              players: session.players,
+              spectators: session.spectators,
+              message: `${userName} joined the game as ${color} and is ${isTurn ? "now" : "not"} taking their turn.`,
+            });
+        
+            session.clients.forEach((client) => {
+              if (client.readyState === 1) client.send(updatePayload); // Only send to open WebSocket clients
+            });
           }
-        
-          const updatePayload = JSON.stringify({
-            type: ENUMS.UPDATE_SESSION,
-            players: session.players,
-            spectators: session.spectators,
-            message: `${data.user.name} joined the game.`,
-          });
-        
-          session.clients.forEach((client) => client.send(updatePayload));
           break;
         }
         
