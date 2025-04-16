@@ -3,7 +3,6 @@ import { discordSdk } from "./DiscordSDKHack";
 import rocketLogo from "./assets/rocket.png";
 import "./style.css";
 
-
 interface User {
   id?: string;
   name?: string;
@@ -35,6 +34,7 @@ function App() {
   const [currentUser, setCurrentUser] = useState<User>(); // The current user
   const [spectators, setSpectators] = useState<User[]>([]); // Ensure spectators is always an array
   const [players, setPlayers] = useState<Player[]>([]); // The users in the current session
+  const [clickMessage, setClickMessage] = useState("");
 
   const [channel, setChannel] = useState<any | null>(null); // The channel ID of the current user
 
@@ -140,12 +140,20 @@ function App() {
       );
     }
   };
+  // Find the player whose turn it is
+  const currentTurnPlayer = players.find((player) => player.isTurn);
+
+  const handleBoardClick = () => {
+    if (!currentTurnPlayer) return;
+    setClickMessage(`${currentTurnPlayer.name} clicked the board!`);
+  };
 
   return (
     <div id="app">
       <header className="header">
         <img src={rocketLogo} className="logo" alt="Discord" />
         <h1>Welcome to Connect 4</h1>
+        <h2>It's {currentTurnPlayer?.name}'s turn!</h2>
         <h2>Current User: {currentUser?.name}</h2>
         <p>Channel Name: {channel ? channel.name : "No channel"}</p>
       </header>
@@ -163,6 +171,12 @@ function App() {
                 <li key={spectator.id}>{spectator.name}</li>
               ))}
             </ul>
+
+            <div className="board-grid" onClick={handleBoardClick}>
+              <b>[Click me to test player EVENTS]</b>
+            </div>
+
+            {clickMessage && <p className="click-message">{clickMessage}</p>}
           </div>
 
           <div className="section">
