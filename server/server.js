@@ -102,19 +102,23 @@ wss.on('connection', (ws) => {
         
           // If the user is not already a player and there's room for one
           if (!isAlreadyPlayer && session.players.length < 2) {
-            const color = session.players.length === 0 ? "red" : "yellow"; // Assign "red" to the first player, "yellow" to the second
-            const isTurn = session.players.length === 0; // First player gets the first turn
-            const dateJoined = new Date().toISOString(); // Get the current date and time in ISO format
+            const color = session.players.length === 0 ? "red" : "yellow";
+            const isTurn = session.players.length === 0;
+            const dateJoined = new Date().toISOString();
         
-            session.players.push({
+            const newPlayer = {
               id: userId,
               name: userName,
               color,
               isTurn,
               dateJoined,
-            });
+            };
         
-            // Send back the updated session
+
+            console.log("New player joined:", newPlayer);
+        
+            session.players.push(newPlayer);
+        
             const updatePayload = JSON.stringify({
               type: ENUMS.UPDATE_SESSION,
               players: session.players,
@@ -123,11 +127,12 @@ wss.on('connection', (ws) => {
             });
         
             session.clients.forEach((client) => {
-              if (client.readyState === 1) client.send(updatePayload); // Only send to open WebSocket clients
+              if (client.readyState === 1) client.send(updatePayload);
             });
           }
           break;
         }
+        
         
         
 
