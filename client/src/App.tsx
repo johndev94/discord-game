@@ -1,6 +1,8 @@
 import { useState, useEffect } from "react";
 import { discordSdk } from "./DiscordSDKHack";
 import rocketLogo from "./assets/rocket.png";
+import "./style.css";
+
 
 interface User {
   id?: string;
@@ -141,47 +143,60 @@ function App() {
 
   return (
     <div id="app">
-      <img src={rocketLogo} className="logo" alt="Discord" />
-      <h1>Welcome to Connect 4</h1>
+      <header className="header">
+        <img src={rocketLogo} className="logo" alt="Discord" />
+        <h1>Welcome to Connect 4</h1>
+        <h2>Current User: {currentUser?.name}</h2>
+        <p>Channel Name: {channel ? channel.name : "No channel"}</p>
+      </header>
 
-      {/* May need to do this validation later or render something different based on spectator count */}
-      <button onClick={handleJoinGame}>Join Game!</button>
+      <main className="main-content">
+        <button className="join-btn" onClick={handleJoinGame}>
+          Join Game!
+        </button>
 
-      <h1>Current User: {currentUser?.name}</h1>
-      <p>Channel Name: {channel ? channel.name : "No channel"}</p>
+        <section className="lists">
+          <div className="section">
+            <h2>Spectators</h2>
+            <ul>
+              {spectators?.map((spectator) => (
+                <li key={spectator.id}>{spectator.name}</li>
+              ))}
+            </ul>
+          </div>
 
-      <h2>Spectators:</h2>
-      <ul>
-        {/* Need to return the spectator count from the server */}
-        {spectators?.map((spectator) => (
-          <li key={spectator.id}>{spectator.name}</li>
-        ))}
-      </ul>
+          <div className="section">
+            <h2>Players</h2>
+            <ul>
+              {players?.map((player) => (
+                <li key={player.id}>
+                  {player.name} — <strong>{player.color.toUpperCase()}</strong>
+                </li>
+              ))}
+            </ul>
+          </div>
+        </section>
 
-      <h2>Players:</h2>
-      <ul>
-        {players?.map((player) => (
-          <li key={player.id}>
-            {player.name} {" - "} {player.color.toUpperCase()}
-          </li>
-        ))}
-      </ul>
-
-      <div>
-        <h1>WebSocket Chat</h1>
-        <div>
-          {messages.map((msg, index) => (
-            <div key={index}>{msg}</div>
-          ))}
-        </div>
-        <input
-          type="text"
-          value={input}
-          onChange={(e) => setInput(e.target.value)}
-          placeholder="Type a message..."
-        />
-        <button onClick={sendMessage}>Send</button>
-      </div>
+        <section className="chat">
+          <h2>WebSocket Chat</h2>
+          <div className="chat-box">
+            {messages.map((msg, index) => (
+              <div key={index} className="chat-message">
+                {msg}
+              </div>
+            ))}
+          </div>
+          <div className="chat-input">
+            <input
+              type="text"
+              value={input}
+              onChange={(e) => setInput(e.target.value)}
+              placeholder="Type a message..."
+            />
+            <button onClick={sendMessage}>Send</button>
+          </div>
+        </section>
+      </main>
     </div>
   );
 }
