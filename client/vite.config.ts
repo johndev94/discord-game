@@ -1,6 +1,7 @@
 import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
 import { DiscordProxy } from '@robojs/patch'
+import path from 'path';
 
 // https://vite.dev/config/
 export default defineConfig({
@@ -27,5 +28,10 @@ export default defineConfig({
       clientPort: 443,
     },
     allowedHosts: [".trycloudflare.com"], // Optional
+  },
+  resolve: {
+    alias: {
+      '@common': path.resolve(__dirname, '../common'),
+    },
   },
 })

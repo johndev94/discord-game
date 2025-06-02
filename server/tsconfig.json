@@ -1,0 +1,22 @@
+{
+  "compilerOptions": {
+    "target": "ES2020",
+    "module": "ESNext",
+    "baseUrl": ".",
+    "rootDir": "../",
+    "outDir": "./dist",
+    "paths": {
+      "@common/*": ["../common/*"]
+    },
+
+    "moduleResolution": "node",
+    "moduleDetection": "force",
+
+    "strict": true,
+    "esModuleInterop": true,
+    "skipLibCheck": true,
+    "isolatedModules": true,
+  },
+  "include": ["src/server.ts"],
+  "exclude": ["node_modules"]
+}

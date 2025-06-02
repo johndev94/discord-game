@@ -1,18 +1,13 @@
 import { useState, useEffect } from "react";
 import { discordSdk } from "./DiscordSDKHack";
 import rocketLogo from "./assets/rocket.png";
+import PlayerDTO  from "@common/dto/player.dto";
+import { MESSAGE_TYPE } from "@common/enum/message-types.enum";
 
 interface User {
   id?: string;
-  name?: string;
+  username?: string;
 }
-
-const ENUMS = {
-  JOIN_SESSION: "join_session",
-  START_SESSION: "start_session",
-  UPDATE_SESSION: "update_session",
-  END_SESSION: "end_session",
-};
 
 function App() {
   // Will eventually store the authenticated user's access_token
@@ -21,7 +16,7 @@ function App() {
   const [input, setInput] = useState("");
 
   const [currentUser, setCurrentUser] = useState<User>(); // The current user
-  const [players, setPlayers] = useState<User[]>([]); // Ensure players is always an array
+  const [players, setPlayers] = useState<PlayerDTO[]>([]); // Ensure players is always an array
   const [channel, setChannel] = useState<any | null>(null); // The channel ID of the current user
 
   useEffect(() => {
@@ -34,7 +29,7 @@ function App() {
         const auth = await discordSdk.initialize();
         setCurrentUser({
           id: auth?.user.id,
-          name: auth?.user.global_name ?? undefined,
+          username: auth?.user.global_name ?? undefined,
         });
       }
 
@@ -47,19 +42,19 @@ function App() {
 
       ws.send(
         JSON.stringify({
-          type: ENUMS.JOIN_SESSION,
+          type: MESSAGE_TYPE.JOIN_SESSION,
           channelId: channel?.id,
-          name: currentUser?.name,
+          username: currentUser?.username,
         })
       );
     };
 
     ws.onmessage = (event) => {
-      const data = JSON.parse(event.data);
+      let data = JSON.parse(event.data);
       console.log("Data received:", data);
-      if (data.type === ENUMS.JOIN_SESSION) {
+      if (data.type === MESSAGE_TYPE.JOIN_SESSION) {
         setPlayers(data.players);
-      } else if (data.type === ENUMS.UPDATE_SESSION) {
+      } else if (data.type === MESSAGE_TYPE.UPDATE_SESSION) {
         setMessages((prevMessages) => [...prevMessages, data.message]);
       }
     };
@@ -101,8 +96,9 @@ function App() {
     if (socket && input) {
       socket.send(
         JSON.stringify({
-          type: ENUMS.UPDATE_SESSION,
-          user: currentUser,
+          type: MESSAGE_TYPE.UPDATE_SESSION,
+          username: currentUser?.username,
+          sessionId: channel?.id,
           message: input,
         })
       );
@@ -118,14 +114,14 @@ function App() {
       {/* May need to do this va;lidation later or redner something different based on player count */}
       <button>Join Game!</button>
 
-      <h1>Current User: {currentUser?.name}</h1>
-      <p>Channel Name: {channel ? channel.name : "No channel"}</p>
+      <h1>Current User: {currentUser?.username}</h1>
+      <p>Channel name: {channel ? channel.username : "No channel"}</p>
 
       <h2>Players:</h2>
       <ul>
         {/* Need to return the player count from the server */}
         {players?.map((player) => (
-          <li key={player.id}>{player.name}</li>
+          <li key={player.id}>{player.username}</li>
         ))}
       </ul>
 
