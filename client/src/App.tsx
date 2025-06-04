@@ -209,6 +209,7 @@ function App() {
             />
             <button onClick={sendMessage}>Send</button>
           </div>
+          <input></input>
         </section>
       </main>
     </div>
