@@ -1,6 +1,6 @@
 /** @type {import('tailwindcss').Config} */
 export default {
-  content: ["./src/**/*.{ts,tsx,js,jsx}"], // Ensure this is included
+  content: ["./src/**/*.{ts,tsx}"], // Ensure this is included
   theme: {
     extend: {},
   },
@@ -9,4 +9,3 @@ export default {
     require('autoprefixer'),
   ],
 }
-
