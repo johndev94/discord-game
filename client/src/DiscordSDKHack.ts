@@ -1,4 +1,5 @@
 import { DiscordSDK } from "@discord/embedded-app-sdk";
+import { OAuthScopes } from "node_modules/@discord/embedded-app-sdk/output/schema/types";
 
 const SESSION_STORAGE_KEY = "__DISCORD_SDK_HACK__";
 
@@ -38,6 +39,7 @@ interface DiscordSDKAuthResponse {
 		| "applications.builds.read"
 		| "applications.commands"
 		| "applications.commands.permissions.update"
+		| "applications.commands.update" 
 		| "applications.store.update"
 		| "applications.entitlements"
 		| "activities.read"
@@ -50,7 +52,7 @@ interface DiscordSDKAuthResponse {
 		| "presences.read"
 		| "presences.write"
 		| "openid"
-		| "dm_channels.messaages.read"
+		| "dm_channels.messages.read"
         | "dm_channels.messages.write"
         | "gateway.connect"
         | "account.global_name.update"
@@ -89,9 +91,11 @@ function setHackData(data: DiscordSDKHackData) {
 class DiscordSDKManager {
 	discordSdk: DiscordSDK;
 	auth: DiscordSDKAuthResponse | undefined = undefined;
+	private scopes: OAuthScopes[];
 
 	constructor() {
 		this.discordSdk = new DiscordSDK(import.meta.env.VITE_DISCORD_CLIENT_ID);
+		this.scopes = import.meta.env.DISCORD_SCOPES;
 	}
 
 	get clientId() {
@@ -154,7 +158,7 @@ class DiscordSDKManager {
 			response_type: "code",
 			state: "",
 			prompt: "none",
-			scope: ["identify", "guilds", "applications.commands", "rpc.voice.read"],
+			scope: this.scopes,
 		});
 
 		const response = await fetch("/.proxy/api/token", {
