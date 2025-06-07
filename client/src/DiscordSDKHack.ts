@@ -1,5 +1,4 @@
 import { DiscordSDK } from "@discord/embedded-app-sdk";
-import { log } from "winston";
 
 const SESSION_STORAGE_KEY = "__DISCORD_SDK_HACK__";
 

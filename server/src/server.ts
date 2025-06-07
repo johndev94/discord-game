@@ -3,7 +3,9 @@ import dotenv from "dotenv";
 import fetch from "node-fetch";
 import { WebSocketServer, WebSocket } from 'ws';
 import JoinDTO from "@common/dto/join.dto";
-import { MESSAGE_TYPE } from "@common/enum/message-types.enum";
+import UpdateDTO from "@common/dto/update.dto";
+import Message from "@common/dto/message.dto"
+import MESSAGE_TYPE from "@common/enum/message-types.enum";
 
 dotenv.config({ path: "../.env" });
 
@@ -25,12 +27,13 @@ app.use(express.json());
 wss.on('connection', (ws : WebSocket) => {
   console.log('Client connected');
 
+  // TODO: Can turn this into a reusable method to put in a service
   ws.on('message', (message : any) => {
-    const data = JSON.parse(message);
-    console.log(`Message type: ${data.type}`);
+    const data : Message<any> = JSON.parse(message);
+    console.log(`Message type: ${data.messageType}`);
     console.log(`Received message: ${message}`);
 
-    switch (data.type) {
+    switch (data.messageType) {
       case MESSAGE_TYPE.JOIN_SESSION: 
         joinSession(data, ws);
         break;
@@ -59,17 +62,16 @@ wss.on('connection', (ws : WebSocket) => {
 
 });
 
-
 // When the message type is join_session, we need to add the player to the session.
-function joinSession(joinDTO : JoinDTO, ws : WebSocket) {
-  console.info("Joining session... Channel ID: " + joinDTO.channelId + " Username: " + joinDTO.username);
+function joinSession(joinDTO : Message<JoinDTO>, ws : WebSocket) {
+  console.info("Joining session... Channel ID: " + joinDTO.channelId + " Username: " + joinDTO.data.username);
 
   if (!sessions.has(joinDTO.channelId)) {
     console.info("INFO: Creating new session");
 
     sessions.set(joinDTO.channelId, {
       clients: [ws],
-      players: [{ username: joinDTO.username }], // We will make a PlayerEntity later 
+      players: [{ username: joinDTO.data.username }], // We will make a PlayerEntity later 
       board: [] // We will make a BoardDTO later or a gamestate object.
     });
 
@@ -84,33 +86,37 @@ function joinSession(joinDTO : JoinDTO, ws : WebSocket) {
       session.clients.push(ws);
     }
 
-    if (!session.players.find((p : any) => p.username === joinDTO.username)) {
-      session.players.push({ name: joinDTO.username }); // Push a new player object to the players later. 
+    //TODO: Should not do one or the other, must be both or none.
+    if (!session.players.find((p : any) => p.username === joinDTO.data.username)) {
+      session.players.push({ name: joinDTO.data.username }); // Push a new player object to the players later. 
     }
   }
-  
+
   let joiningSession = sessions.get(joinDTO.channelId);
 
   joiningSession.clients.forEach((client : WebSocket) => {
     // May want to standertise this message object later as a DTO or WS message object.
-    client.send(JSON.stringify({type: MESSAGE_TYPE.JOIN_SESSION, players: joiningSession.players}));
+    client.send(JSON.stringify(joinDTO));
   });
 }
 
+// TODO
 function startSession(startSessionDTO : any, ws : WebSocket) {
   console.info("Starting session");
 }
 
-function updateSession(updateSessionDTO: any, ws : WebSocket) {
+function updateSession(updateSessionDTO: Message<UpdateDTO>, ws : WebSocket) {
   console.info("INFO: Updating session", updateSessionDTO);
-  let updatingSession = sessions.get(updateSessionDTO.sessionId);
   
-  updatingSession.clients.forEach((client : WebSocket) => {
+  let gameSession = sessions.get(updateSessionDTO.channelId);
+
+  gameSession.clients.forEach((client : WebSocket) => {
     console.log(`Sending message to client`);
-    client.send(JSON.stringify({type: MESSAGE_TYPE.UPDATE_SESSION, message: updateSessionDTO.message})); // This will be game session data later.
+    client.send(JSON.stringify(updateSessionDTO)); // This will be game session data later.
   });
 }
 
+// TODO 
 function endSession(endSessionDTO: any, ws : WebSocket) {
   console.info("Ending session", endSessionDTO);
 }

@@ -1,5 +1,5 @@
 export default interface PlayerDTO { 
-    id?: string;
+    playerId?: string; // Is the player ID for the channel or the player?
     username?: string;
     avatar?: string; // URL to Discord avatar
     color?: "red" | "yellow"; 

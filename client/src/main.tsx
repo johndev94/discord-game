@@ -6,8 +6,6 @@ import App from "./App.tsx";
 createRoot(document.getElementById("root")!).render(
 	// Strictmode will make the components reredner twice to catch any potential issues
 	<StrictMode>
-
 		<App />
-		
 	</StrictMode>
 );
