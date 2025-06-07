@@ -1,5 +1,4 @@
 import { DiscordSDK } from "@discord/embedded-app-sdk";
-import { OAuthScopes } from "node_modules/@discord/embedded-app-sdk/output/schema/types";
 
 const SESSION_STORAGE_KEY = "__DISCORD_SDK_HACK__";
 
@@ -91,11 +90,9 @@ function setHackData(data: DiscordSDKHackData) {
 class DiscordSDKManager {
 	discordSdk: DiscordSDK;
 	auth: DiscordSDKAuthResponse | undefined = undefined;
-	private scopes: OAuthScopes[];
 
 	constructor() {
 		this.discordSdk = new DiscordSDK(import.meta.env.VITE_DISCORD_CLIENT_ID);
-		this.scopes = import.meta.env.DISCORD_SCOPES;
 	}
 
 	get clientId() {
@@ -129,7 +126,7 @@ class DiscordSDKManager {
 	async ready() {
 		// Hack for https://github.com/discord/embedded-app-sdk/issues/41 (only affects development environment)
 		if (import.meta.env.DEV) {
-            console.log("Using dev auth hack ");
+            console.log("Using dev auth hack");
 			const data = getHackData();
 			if (data) {
 				const discordSdkAny = this.discordSdk as any;
@@ -138,7 +135,6 @@ class DiscordSDKManager {
 				} else {
 					discordSdkAny.sourceOrigin = "*";
 					discordSdkAny.isReady = true;
-
 					this.auth = data.cachedAuthData;
 				}
 			}
@@ -158,7 +154,7 @@ class DiscordSDKManager {
 			response_type: "code",
 			state: "",
 			prompt: "none",
-			scope: this.scopes,
+			scope: ["identify", "guilds", "applications.commands", "rpc.voice.read"]
 		});
 
 		const response = await fetch("/.proxy/api/token", {
