@@ -139,7 +139,6 @@ class DiscordSDKManager {
 				}
 			}
 		}
-
 		await this.discordSdk.ready();
 	}
 

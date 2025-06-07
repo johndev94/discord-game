@@ -1,11 +1,11 @@
 import { useState, useEffect } from "react";
 import { discordSdk } from "./DiscordSDKHack";
-import rocketLogo from "./assets/rocket.png";
 import PlayerDTO from "@common/dto/player.dto";
 import JoinDTO from "@common/dto/join.dto";
 import UpdateDTO from "@common/dto/update.dto";
 import Message from "@common/dto/message.dto";
 import MESSAGE_TYPE from "@common/enum/message-types.enum";
+import Connect4Game from "./ConnectFour";
 
 function App() {
 	// Will eventually store the authenticated user's access_token
@@ -28,6 +28,7 @@ function App() {
 				setCurrentUser({
 					playerId: auth?.user.id,
 					username: auth?.user.global_name ?? undefined,
+					avatar: `https://cdn.discordapp.com/avatars/${auth?.user.id}/${auth?.user.avatar}.png`,
 				});
 			}
 
@@ -43,6 +44,7 @@ function App() {
 				channelId: channel?.id,
 				data: {
 					username: currentUser?.username || "",
+					channelName: channel?.name || "",
 				},
 			};
 
@@ -110,17 +112,14 @@ function App() {
 		}
 	};
 
+	console.log(currentUser?.avatar);
+
 	return (
 		<div id="app">
-			<img src={rocketLogo} className="logo" alt="Discord" />
-			<h1>Welcome to Connect 4</h1>
-
-			{/* May need to do this va;lidation later or redner something different based on player count */}
-			<button>Join Game!</button>
-
 			<h1>Current User: {currentUser?.username}</h1>
-			<p>Channel name: {channel ? channel.username : "No channel"}</p>
+			<img src={currentUser?.avatar} className="logo" alt="User Avatar" />
 
+			<p>Channel name: {channel ? channel.name : "No channel"}</p>
 			<h2>Players:</h2>
 			<ul>
 				{/* Need to return the player count from the server */}
@@ -144,19 +143,11 @@ function App() {
 				/>
 				<button onClick={sendMessage}>Send</button>
 			</div>
+			<div>
+				<Connect4Game />
+			</div>
 		</div>
 	);
 }
 
 export default App;
-// async function addPlayer(authUser: any) {
-//     const newPlayer: Player = {
-//       id: authUser.id,
-//       name: authUser.global_name || "Unknown Player",
-//       avatar: authUser.avatar
-//         ? `https://cdn.discordapp.com/avatars/${authUser.id}/${authUser.avatar}.png`
-//         : undefined,
-//       color: players.length === 0 ? "red" : "yellow", // First player is red, second is yellow
-//       isTurn: players.length === 0, // First player starts, can make this random after testing
-//       score: 0,
-//     };
