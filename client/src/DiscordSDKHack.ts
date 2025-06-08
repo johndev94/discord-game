@@ -1,5 +1,4 @@
 import { DiscordSDK } from "@discord/embedded-app-sdk";
-import { log } from "winston";
 
 const SESSION_STORAGE_KEY = "__DISCORD_SDK_HACK__";
 
@@ -39,6 +38,7 @@ interface DiscordSDKAuthResponse {
 		| "applications.builds.read"
 		| "applications.commands"
 		| "applications.commands.permissions.update"
+		| "applications.commands.update" 
 		| "applications.store.update"
 		| "applications.entitlements"
 		| "activities.read"
@@ -51,7 +51,7 @@ interface DiscordSDKAuthResponse {
 		| "presences.read"
 		| "presences.write"
 		| "openid"
-		| "dm_channels.messaages.read"
+		| "dm_channels.messages.read"
         | "dm_channels.messages.write"
         | "gateway.connect"
         | "account.global_name.update"
@@ -126,7 +126,7 @@ class DiscordSDKManager {
 	async ready() {
 		// Hack for https://github.com/discord/embedded-app-sdk/issues/41 (only affects development environment)
 		if (import.meta.env.DEV) {
-            console.log("Using dev auth hack ");
+            console.log("Using dev auth hack");
 			const data = getHackData();
 			if (data) {
 				const discordSdkAny = this.discordSdk as any;
@@ -135,12 +135,10 @@ class DiscordSDKManager {
 				} else {
 					discordSdkAny.sourceOrigin = "*";
 					discordSdkAny.isReady = true;
-
 					this.auth = data.cachedAuthData;
 				}
 			}
 		}
-
 		await this.discordSdk.ready();
 	}
 
@@ -155,7 +153,7 @@ class DiscordSDKManager {
 			response_type: "code",
 			state: "",
 			prompt: "none",
-			scope: ["identify", "guilds", "applications.commands", "rpc.voice.read"],
+			scope: ["identify", "guilds", "applications.commands", "rpc.voice.read"]
 		});
 
 		const response = await fetch("/.proxy/api/token", {

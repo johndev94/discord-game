@@ -1,162 +1,153 @@
 import { useState, useEffect } from "react";
 import { discordSdk } from "./DiscordSDKHack";
-import rocketLogo from "./assets/rocket.png";
-
-interface User {
-  id?: string;
-  name?: string;
-}
-
-const ENUMS = {
-  JOIN_SESSION: "join_session",
-  START_SESSION: "start_session",
-  UPDATE_SESSION: "update_session",
-  END_SESSION: "end_session",
-};
+import PlayerDTO from "@common/dto/player.dto";
+import JoinDTO from "@common/dto/join.dto";
+import UpdateDTO from "@common/dto/update.dto";
+import Message from "@common/dto/message.dto";
+import MESSAGE_TYPE from "@common/enum/message-types.enum";
+import Connect4Game from "./ConnectFour";
 
 function App() {
-  // Will eventually store the authenticated user's access_token
-  const [socket, setSocket] = useState<WebSocket | null>(null);
-  const [messages, setMessages] = useState<string[]>([]);
-  const [input, setInput] = useState("");
+	// Will eventually store the authenticated user's access_token
+	const [socket, setSocket] = useState<WebSocket | null>(null);
+	const [messages, setMessages] = useState<string[]>([]);
+	const [input, setInput] = useState("");
 
-  const [currentUser, setCurrentUser] = useState<User>(); // The current user
-  const [players, setPlayers] = useState<User[]>([]); // Ensure players is always an array
-  const [channel, setChannel] = useState<any | null>(null); // The channel ID of the current user
+	const [currentUser, setCurrentUser] = useState<PlayerDTO>(); // The current user
+	const [players, setPlayers] = useState<PlayerDTO[]>([]); // Ensure players is always an array
+	const [channel, setChannel] = useState<any | null>(null); // The channel ID of the current user
 
-  useEffect(() => {
-    const ws = new WebSocket(`/.proxy/ws`);
+	useEffect(() => {
+		const ws = new WebSocket(`/.proxy/ws`);
 
-    ws.onopen = async () => {
-      console.log("Connected to WebSocket server");
+		ws.onopen = async () => {
+			console.log("Connected to WebSocket server");
 
-      if (!currentUser) {
-        const auth = await discordSdk.initialize();
-        setCurrentUser({
-          id: auth?.user.id,
-          name: auth?.user.global_name ?? undefined,
-        });
-      }
+			if (!currentUser) {
+				const auth = await discordSdk.initialize();
+				setCurrentUser({
+					playerId: auth?.user.id,
+					username: auth?.user.global_name ?? undefined,
+					avatar: `https://cdn.discordapp.com/avatars/${auth?.user.id}/${auth?.user.avatar}.png`,
+				});
+			}
 
-      const channel = await getCurrentVoiceChannel();
+			const channel = await getCurrentVoiceChannel();
 
-      if (channel !== null) {
-        setChannel(channel);
-        console.log("Channel ID:", channel?.id);
-      }
+			if (channel !== null) {
+				setChannel(channel);
+				console.log("Channel ID:", channel?.id);
+			}
 
-      ws.send(
-        JSON.stringify({
-          type: ENUMS.JOIN_SESSION,
-          channelId: channel?.id,
-          name: currentUser?.name,
-        })
-      );
-    };
+			let joinSession: Message<JoinDTO> = {
+				messageType: MESSAGE_TYPE.JOIN_SESSION,
+				channelId: channel?.id,
+				data: {
+					username: currentUser?.username || "",
+					channelName: channel?.name || "",
+				},
+			};
 
-    ws.onmessage = (event) => {
-      const data = JSON.parse(event.data);
-      console.log("Data received:", data);
-      if (data.type === ENUMS.JOIN_SESSION) {
-        setPlayers(data.players);
-      } else if (data.type === ENUMS.UPDATE_SESSION) {
-        setMessages((prevMessages) => [...prevMessages, data.message]);
-      }
-    };
+			ws.send(JSON.stringify(joinSession));
+		};
 
-    ws.onclose = () => {
-      console.log("Disconnected from WebSocket server");
-      // May need to remove the user from the sesssion here
-    };
+		// TODO: What happends if I try to convert the any to a JoinDTO or UpdateDTO
+		ws.onmessage = (event) => {
+			let data: Message<any> = JSON.parse(event.data);
+			console.log("Data received:", data);
+			if (data.messageType === MESSAGE_TYPE.JOIN_SESSION) {
+				setPlayers(data.data.players);
+			} else if (data.messageType === MESSAGE_TYPE.UPDATE_SESSION) {
+				setMessages((prevMessages) => [...prevMessages, data.data.message]);
+			}
+		};
 
-    ws.onerror = (error) => {
-      console.error("WebSocket error:", error);
-    };
+		ws.onclose = () => {
+			console.log("Disconnected from WebSocket server");
+			// May need to remove the user from the sesssion here
+		};
 
-    setSocket(ws);
+		ws.onerror = (error) => {
+			console.error("WebSocket error:", error);
+		};
 
-    // Cleanup function
-    return () => {
-      ws.close();
-    };
-  }, [currentUser]);
+		setSocket(ws);
 
-  async function getCurrentVoiceChannel() {
-    if (!discordSdk.channelId) {
-      console.warn("Not in a voice channel");
-      return;
-    }
+		// Cleanup function
+		return () => {
+			ws.close();
+		};
+	}, [currentUser]);
 
-    try {
-      const channel = await discordSdk.commands.getChannel({
-        channel_id: discordSdk.channelId,
-      });
-      return channel;
-    } catch (error) {
-      console.error("Error fetching channel:", error);
-    }
-  }
+	async function getCurrentVoiceChannel() {
+		if (!discordSdk.channelId) {
+			console.warn("Not in a voice channel");
+			return;
+		}
 
-  const sendMessage = () => {
-    if (socket && input) {
-      socket.send(
-        JSON.stringify({
-          type: ENUMS.UPDATE_SESSION,
-          user: currentUser,
-          message: input,
-        })
-      );
-      setInput("");
-    }
-  };
+		try {
+			const channel = await discordSdk.commands.getChannel({
+				channel_id: discordSdk.channelId,
+			});
+			return channel;
+		} catch (error) {
+			console.error("Error fetching channel:", error);
+		}
+	}
 
-  return (
-    <div id="app">
-      <img src={rocketLogo} className="logo" alt="Discord" />
-      <h1>Welcome to Connect 4</h1>
+	const sendMessage = () => {
+		if (socket && input) {
+			let updateMessage: Message<UpdateDTO> = {
+				messageType: MESSAGE_TYPE.UPDATE_SESSION,
+				channelId: channel?.id,
+				data: {
+					username: currentUser?.username ?? "",
+					message: input,
+				},
+			};
 
-      {/* May need to do this va;lidation later or redner something different based on player count */}
-      <button>Join Game!</button>
+			socket.send(JSON.stringify(updateMessage));
 
-      <h1>Current User: {currentUser?.name}</h1>
-      <p>Channel Name: {channel ? channel.name : "No channel"}</p>
+			setInput("");
+		}
+	};
 
-      <h2>Players:</h2>
-      <ul>
-        {/* Need to return the player count from the server */}
-        {players?.map((player) => (
-          <li key={player.id}>{player.name}</li>
-        ))}
-      </ul>
+	console.log(currentUser?.avatar);
 
-      <div>
-        <h1>WebSocket Chat</h1>
-        <div>
-          {messages.map((msg, index) => (
-            <div key={index}>{msg}</div>
-          ))}
-        </div>
-        <input
-          type="text"
-          value={input}
-          onChange={(e) => setInput(e.target.value)}
-          placeholder="Type a message..."
-        />
-        <button onClick={sendMessage}>Send</button>
-      </div>
-    </div>
-  );
+	return (
+		<div id="app">
+			<h1>Current User: {currentUser?.username}</h1>
+			<img src={currentUser?.avatar} className="logo" alt="User Avatar" />
+
+			<p>Channel name: {channel ? channel.name : "No channel"}</p>
+			<h2>Players:</h2>
+			<ul>
+				{/* Need to return the player count from the server */}
+				{players?.map((player) => (
+					<li key={player.playerId}>{player.username}</li>
+				))}
+			</ul>
+
+			<div>
+				<h1>WebSocket Chat</h1>
+				<div>
+					{messages.map((msg, index) => (
+						<div key={index}>{msg}</div>
+					))}
+				</div>
+				<input
+					type="text"
+					value={input}
+					onChange={(e) => setInput(e.target.value)}
+					placeholder="Type a message..."
+				/>
+				<button onClick={sendMessage}>Send</button>
+			</div>
+			<div>
+				<Connect4Game />
+			</div>
+		</div>
+	);
 }
 
 export default App;
-// async function addPlayer(authUser: any) {
-//     const newPlayer: Player = {
-//       id: authUser.id,
-//       name: authUser.global_name || "Unknown Player",
-//       avatar: authUser.avatar
-//         ? `https://cdn.discordapp.com/avatars/${authUser.id}/${authUser.avatar}.png`
-//         : undefined,
-//       color: players.length === 0 ? "red" : "yellow", // First player is red, second is yellow
-//       isTurn: players.length === 0, // First player starts, can make this random after testing
-//       score: 0,
-//     };
