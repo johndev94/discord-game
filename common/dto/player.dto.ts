@@ -1,8 +1,14 @@
-export default interface PlayerDTO { 
-    playerId?: string; // Is the player ID for the channel or the player?
-    username?: string;
-    avatar?: string; // URL to Discord avatar
-    color?: "red" | "yellow"; 
-    isTurn?: boolean; // Tracks if it's their turn
-    score?: number; // Player's score
+import UserDTO from "./user.dto";
+
+export default class PlayerDTO extends UserDTO {
+    color?: "red" | "yellow";
+    isTurn?: boolean;
+    score?: number;
+
+    constructor(playerId?: string, username?: string, avatar?: string, color?: "red" | "yellow", isTurn?: boolean, score?: number) {
+        super(playerId, username, avatar);
+        this.color = color;
+        this.isTurn = isTurn;
+        this.score = score;
+    }
 }
