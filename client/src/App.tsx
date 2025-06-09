@@ -1,21 +1,27 @@
 import { useState, useEffect } from "react";
 import { discordSdk } from "./DiscordSDKHack";
 import PlayerDTO from "@common/dto/player.dto";
-import JoinDTO from "@common/dto/join.dto";
-import UpdateDTO from "@common/dto/update.dto";
 import Message from "@common/dto/message.dto";
 import MESSAGE_TYPE from "@common/enum/message-types.enum";
 import Connect4Game from "./ConnectFour";
+import SessionDTO from "@common/dto/session.dto";
+import JoinSessionDTO from "@common/dto/join-session.dto";
+import UserDTO from "@common/dto/user.dto";
+import SpectatorDTO from "@common/dto/spectator.dto";
+import BoardDTO from "@common/dto/board.dto";
 
 function App() {
 	// Will eventually store the authenticated user's access_token
 	const [socket, setSocket] = useState<WebSocket | null>(null);
-	const [messages, setMessages] = useState<string[]>([]);
-	const [input, setInput] = useState("");
-
-	const [currentUser, setCurrentUser] = useState<PlayerDTO>(); // The current user
-	const [players, setPlayers] = useState<PlayerDTO[]>([]); // Ensure players is always an array
 	const [channel, setChannel] = useState<any | null>(null); // The channel ID of the current user
+
+	const [messages, setMessages] = useState<string[]>([]); // For messaging test
+	const [input, setInput] = useState(""); // For messaging test
+
+	const [currentUser, setCurrentUser] = useState<UserDTO>(); // The current user
+	const [players, setPlayers] = useState<PlayerDTO[]>([]); // Ensure players is always an array
+	const [spectators, setSpectators] = useState<SpectatorDTO[]>([]);
+	const [board, setBoard] = useState<BoardDTO>();
 
 	useEffect(() => {
 		const ws = new WebSocket(`/.proxy/ws`);
@@ -25,38 +31,43 @@ function App() {
 
 			if (!currentUser) {
 				const auth = await discordSdk.initialize();
-				setCurrentUser({
-					playerId: auth?.user.id,
-					username: auth?.user.global_name ?? undefined,
-					avatar: `https://cdn.discordapp.com/avatars/${auth?.user.id}/${auth?.user.avatar}.png`,
-				});
+				let player: UserDTO = new UserDTO(
+					auth?.user.id,
+					auth?.user.global_name ?? undefined,
+					auth?.user.avatar ?? undefined
+				);
+
+				setCurrentUser(player);
 			}
 
 			const channel = await getCurrentVoiceChannel();
 
 			if (channel !== null) {
 				setChannel(channel);
-				console.log("Channel ID:", channel?.id);
 			}
 
-			let joinSession: Message<JoinDTO> = {
-				messageType: MESSAGE_TYPE.JOIN_SESSION,
-				channelId: channel?.id,
-				data: {
-					username: currentUser?.username || "",
-					channelName: channel?.name || "",
-				},
-			};
+			let joinSession: Message<JoinSessionDTO> = new Message<JoinSessionDTO>(
+				MESSAGE_TYPE.JOIN_SESSION,
+				channel?.id,
+				new JoinSessionDTO(
+					new SpectatorDTO(
+						currentUser?.playerId!,
+						currentUser?.username!,
+						currentUser?.avatar!
+					)
+				)
+			);
 
 			ws.send(JSON.stringify(joinSession));
 		};
 
-		// TODO: What happends if I try to convert the any to a JoinDTO or UpdateDTO
 		ws.onmessage = (event) => {
 			let data: Message<any> = JSON.parse(event.data);
 			console.log("Data received:", data);
 			if (data.messageType === MESSAGE_TYPE.JOIN_SESSION) {
-				setPlayers(data.data.players);
+				let sessionData = data.data as SessionDTO
+				setPlayers(sessionData.players);
+				setSpectators(sessionData.spectators);
 			} else if (data.messageType === MESSAGE_TYPE.UPDATE_SESSION) {
 				setMessages((prevMessages) => [...prevMessages, data.data.message]);
 			}
@@ -97,14 +108,18 @@ function App() {
 
 	const sendMessage = () => {
 		if (socket && input) {
-			let updateMessage: Message<UpdateDTO> = {
-				messageType: MESSAGE_TYPE.UPDATE_SESSION,
-				channelId: channel?.id,
-				data: {
-					username: currentUser?.username ?? "",
-					message: input,
-				},
-			};
+			let updateMessage: Message<SessionDTO> = new Message<SessionDTO>(
+				MESSAGE_TYPE.UPDATE_SESSION,
+				channel?.id
+			);
+			// {
+			// 	messageType: MESSAGE_TYPE.UPDATE_SESSION,
+			// 	channelId: channel?.id,
+			// 	data: {
+			// 		username: currentUser?.username ?? "",
+			// 		message: input,
+			// 	},
+			// };
 
 			socket.send(JSON.stringify(updateMessage));
 
@@ -117,9 +132,21 @@ function App() {
 	return (
 		<div id="app">
 			<h1>Current User: {currentUser?.username}</h1>
-			<img src={currentUser?.avatar} className="logo" alt="User Avatar" />
+			<img
+				src={currentUser?.avatar ?? undefined}
+				className="logo"
+				alt="User Avatar"
+			/>
 
 			<p>Channel name: {channel ? channel.name : "No channel"}</p>
+
+			<h2>Specatators:</h2>
+			<ul>
+				{spectators?.map((spectator) => (
+					<li key={spectator.playerId}>{spectator.username}</li>
+				))}
+			</ul>
+
 			<h2>Players:</h2>
 			<ul>
 				{/* Need to return the player count from the server */}
