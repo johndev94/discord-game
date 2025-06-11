@@ -6,4 +6,24 @@ Read more about building Discord Activities with the Embedded App SDK at [https:
 
 ## Getting Started
 
-1. Create a .env file and add your client id and secret to it.
+**IMPORTANT**: Create a .env file and add your **client ID** and **secret** to it.
+
+## Run Server
+
+```shell
+cd ./server
+npm run dev
+```
+
+## Run Client
+
+```shell
+cd ./client
+npm run dev
+```
+
+## Create Tunnel
+
+```shell
+cloudflared tunnel --url localhost:5173
+```
