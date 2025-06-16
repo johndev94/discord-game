@@ -1,4 +1,5 @@
-import { WebSocketServer, WebSocket } from "ws";
+import { WebSocketServer } from "ws";
+import { WebSocket } from "./types/websocket";
 import Message from "@common/dto/message.dto";
 import MESSAGE_TYPE from "@common/enum/message-types.enum";
 import GameSessionEntity from "./entity/game-session.entity";
@@ -8,39 +9,28 @@ import JoinSessionDTO from "@common/dto/join-session.dto";
 import SpectatorDTO from "@common/dto/spectator.dto";
 
 const sessions = new Map<string, GameSessionEntity>();
-
 const wss: WebSocketServer = new WebSocketServer({ port: 3002 });
 
-wss.on("connection", (ws: WebSocket) => {
-	console.log("Client connected");
 
-	ws.on("message", (message: string) => {
-		const data: Message<any> = JSON.parse(message);
-		console.log(`Received message: ${message}`);
-
-		switch (data.messageType) {
-			case MESSAGE_TYPE.JOIN_SESSION:
-				joinSession(data, ws);
-				break;
-			case MESSAGE_TYPE.START_SESSION:
-				startSession(data, ws);
-				break;
-			case MESSAGE_TYPE.UPDATE_SESSION:
-				updateSession(data);
-				break;
-			case MESSAGE_TYPE.END_SESSION:
-				endSession(data, ws);
-				break;
-			default:
-				console.info("Unknown message type");
-				break;
-		}
-	});
-
-	ws.on("close", () => {
-		console.log("Client disconnected");
-	});
-});
+function handleMessage(data: Message<any>, ws: WebSocket) {
+	switch (data.messageType) {
+		case MESSAGE_TYPE.JOIN_SESSION:
+			joinSession(data, ws);
+			break;
+		case MESSAGE_TYPE.START_SESSION:
+			startSession(data, ws);
+			break;
+		case MESSAGE_TYPE.UPDATE_SESSION:
+			updateSession(data);
+			break;
+		case MESSAGE_TYPE.END_SESSION:
+			endSession(data, ws);
+			break;
+		default:
+			console.info("Unknown message type");
+			break;
+	}
+}
 
 function joinSession(joinMessage: Message<JoinSessionDTO>, ws: WebSocket) {
 	let session = sessions.get(joinMessage.channelId!);
@@ -72,7 +62,9 @@ function joinSession(joinMessage: Message<JoinSessionDTO>, ws: WebSocket) {
 	);
 
 	session.clients.forEach((client: WebSocket) => {
-		client.send(JSON.stringify(joinSessionMessage));
+		// if (client.readyState === WebSocket.OPEN) {
+			client.send(JSON.stringify(joinSessionMessage));
+		// }
 	});
 }
 
@@ -92,7 +84,9 @@ function updateSession(updateSessionDTO: Message<SessionDTO>) {
 
 	if (gameSession) {
 		gameSession.clients.forEach((client: WebSocket) => {
-			client.send(JSON.stringify(updateSessionDTO));
+			// if(client.readyState === WebSocket.OPEN){
+				client.send(JSON.stringify(updateSessionDTO));
+			// }
 		});
 	}
 }
@@ -100,5 +94,59 @@ function updateSession(updateSessionDTO: Message<SessionDTO>) {
 function endSession(endSessionDTO: any, ws: WebSocket) {
 	console.info("Ending session", endSessionDTO);
 }
+
+
+function setupHeartbeat(ws: WebSocket) {
+	ws.isAlive = true;
+
+	ws.on("pong", function () {
+		console.log("GOT A PONG");
+		ws.isAlive = true;
+	});
+}
+
+function startHeartbeat(wss: WebSocketServer, intervalTime: number = 30000) {
+	const interval = setInterval(() => {
+
+		wss.clients.forEach((ws: WebSocket) => {
+			if (!ws.isAlive) {
+				console.log("WE KILLING THIS THING");
+				return ws.terminate();
+			}
+
+			ws.isAlive = false;
+			ws.ping(() => {
+				console.log("WE PINGING");
+			});
+		});
+
+	}, intervalTime);
+
+	wss.on('close', () => {
+		console.log("HE DIED");
+		clearInterval(interval);
+	});
+}
+
+function onClientConnection(ws: WebSocket) {
+	console.log("New client connected");
+
+	setupHeartbeat(ws);
+
+	ws.on("message", (message: string) => {
+		const data: Message<any> = JSON.parse(message);
+		console.log(`Received message: ${message}`);
+		handleMessage(data, ws);
+	});
+
+	ws.on("close", () => {
+		console.log("Client disconnected");
+		// May need to check if the user is diconnecting or not and try to reconnect
+	});
+}
+
+
+wss.on("connection", onClientConnection);
+startHeartbeat(wss);
 
 export default wss;

@@ -63,7 +63,7 @@ function App() {
         </>
       }
 
-      <button>Join Game</button>
+      <button className="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded" >Join Game</button>
       
       {/* <div>
         <h1>WebSocket Chat</h1>
