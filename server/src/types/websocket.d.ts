@@ -5,5 +5,3 @@ declare module "ws" {
         isAlive?: boolean;
     }
 }
-
-export { WebSocket };
