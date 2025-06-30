@@ -14,6 +14,9 @@ export function handleMessage(data: Message<any>, ws: WebSocket) {
 		case MESSAGE_TYPE.UPDATE_SESSION:
 			sessionManagementService.updateSession(data);
 			break;
+		case MESSAGE_TYPE.PLAYER_MOVE:
+			sessionManagementService.playerMove(data);
+			break;
 		case MESSAGE_TYPE.END_SESSION:
 			sessionManagementService.endSession(data, ws);
 			break;

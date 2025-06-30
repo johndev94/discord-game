@@ -5,7 +5,9 @@ import SessionDTO from "@common/dto/session.dto";
 import BoardDTO from "@common/dto/board.dto";
 import JoinSessionDTO from "@common/dto/join-session.dto";
 import SpectatorDTO from "@common/dto/spectator.dto";
+import PlayerMoveDTO from "@common/dto/player-move.dto"
 import GameSessionEntity from "../entity/game-session.entity";
+import processPlayerMove from "./game-state-service"
 
 class SessionManagementService {
 
@@ -24,22 +26,25 @@ class SessionManagementService {
     }
 
     joinSession(joinMessage: Message<JoinSessionDTO>, ws: WebSocket) {
-        let session = this.sessions.get(joinMessage.channelId!);
+        const joinChannelID = joinMessage.channelId;
+
+        if (!joinChannelID) return;
+
+        let session = this.sessions.get(joinChannelID);
 
         if (!session) {
             const sessionDTO = new SessionDTO(
                 [],
-                [joinMessage.data?.spectator!],
+                [joinMessage.data.spectator],
                 new BoardDTO()
             );
             session = new GameSessionEntity([ws], sessionDTO);
-            this.sessions.set(joinMessage.channelId!, session);
+            this.sessions.set(joinChannelID, session);
         } else {
             if (!session.clients.includes(ws)) {
                 session.clients.push(ws);
             }
 
-            // Check if the user is already in the spectators list by their `playerId` or `username`
             const newSpectator = joinMessage.data?.spectator;
             if (newSpectator && !session.sessionData.spectators.some(spectator => spectator.playerId === newSpectator.playerId)) {
                 session.sessionData.spectators.push(newSpectator);
@@ -48,7 +53,7 @@ class SessionManagementService {
 
         const joinSessionMessage = new Message<SessionDTO>(
             joinMessage.messageType,
-            joinMessage.channelId,
+            joinChannelID,
             session.sessionData
         );
 
@@ -68,15 +73,28 @@ class SessionManagementService {
 
         const gameSession = this.sessions.get(updateSessionDTO?.channelId!);
 
-        // I want to do game validation here such as updating peices placed, winners, lossers
-        // points, players, spectators, and maybe people in the queue.
-
-        // let updateSessionDTO = processSession(updateSessionDTO);
-
         if (gameSession) {
             gameSession.clients.forEach((client: WebSocket) => {
                 if (client.readyState === WebSocket.OPEN) {
                     client.send(JSON.stringify(updateSessionDTO));
+                }
+            });
+        }
+    }
+
+    playerMove(playerMoveDTO: Message<PlayerMoveDTO>) {
+        console.info("INFO: Updating session", playerMoveDTO);
+        const gameSession = this.sessions.get(playerMoveDTO?.channelId!);
+
+        if (!gameSession) return;
+        if (!playerMoveDTO.data) return;
+
+        gameSession.sessionData = processPlayerMove(playerMoveDTO.data);
+
+        if (gameSession) {
+            gameSession.clients.forEach((client: WebSocket) => {
+                if (client.readyState === WebSocket.OPEN) {
+                    client.send(JSON.stringify(playerMoveDTO));
                 }
             });
         }
